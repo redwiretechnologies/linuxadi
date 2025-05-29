@@ -55,8 +55,7 @@ static const struct flash_info xilinx_nor_parts[] = {
  */
 static u32 s3an_nor_convert_addr(struct spi_nor *nor, u32 addr)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-	u32 page_size = params->page_size;
+	u32 page_size = nor->params->page_size;
 	u32 offset, page;
 
 	offset = addr % page_size;
@@ -116,7 +115,6 @@ static int xilinx_nor_sr_ready(struct spi_nor *nor)
 static int xilinx_nor_setup(struct spi_nor *nor,
 			    const struct spi_nor_hwcaps *hwcaps)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
 	u32 page_size;
 	int ret;
 
@@ -142,14 +140,14 @@ static int xilinx_nor_setup(struct spi_nor *nor,
 	 */
 	if (nor->bouncebuf[0] & XSR_PAGESIZE) {
 		/* Flash in Power of 2 mode */
-		page_size = (params->page_size == 264) ? 256 : 512;
-		params->page_size = page_size;
+		page_size = (nor->params->page_size == 264) ? 256 : 512;
+		nor->params->page_size = page_size;
 		nor->mtd.writebufsize = page_size;
-		params->size = 8 * page_size * nor->info->n_sectors;
+		nor->params->size = 8 * page_size * nor->info->n_sectors;
 		nor->mtd.erasesize = 8 * page_size;
 	} else {
 		/* Flash in Default addressing mode */
-		params->convert_addr = s3an_nor_convert_addr;
+		nor->params->convert_addr = s3an_nor_convert_addr;
 		nor->mtd.erasesize = nor->info->sector_size;
 	}
 
@@ -158,10 +156,8 @@ static int xilinx_nor_setup(struct spi_nor *nor,
 
 static void xilinx_nor_late_init(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
-	params->setup = xilinx_nor_setup;
-	params->ready = xilinx_nor_sr_ready;
+	nor->params->setup = xilinx_nor_setup;
+	nor->params->ready = xilinx_nor_sr_ready;
 }
 
 static const struct spi_nor_fixups xilinx_nor_fixups = {

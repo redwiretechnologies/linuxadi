@@ -106,7 +106,6 @@ int dwc3_host_init(struct dwc3 *dwc)
 	struct platform_device	*xhci;
 	int			ret, irq;
 	int			prop_idx = 0;
-	struct platform_device	*dwc3_pdev = to_platform_device(dwc->dev);
 
 	irq = dwc3_host_get_irq(dwc);
 	if (irq < 0)
@@ -139,10 +138,6 @@ int dwc3_host_init(struct dwc3 *dwc)
 	if (dwc->usb2_lpm_disable)
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("usb2-lpm-disable");
 
-	if (device_property_read_bool(&dwc3_pdev->dev,
-				      "snps,xhci-reset-on-resume"))
-		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-reset-on-resume");
-
 	/**
 	 * WORKAROUND: dwc3 revisions <=3.00a have a limitation
 	 * where Port Disable command doesn't work.
@@ -160,23 +155,6 @@ int dwc3_host_init(struct dwc3 *dwc)
 		if (ret) {
 			dev_err(dwc->dev, "failed to add properties to xHCI\n");
 			goto err;
-		}
-	}
-
-	phy_create_lookup(dwc->usb2_generic_phy, "usb2-phy",
-			  dev_name(dwc->dev));
-	phy_create_lookup(dwc->usb3_generic_phy, "usb3-phy",
-			  dev_name(dwc->dev));
-
-	if (dwc->dr_mode == USB_DR_MODE_OTG) {
-		struct usb_phy *phy = usb_get_phy(USB_PHY_TYPE_USB3);
-
-		if (!IS_ERR(phy)) {
-			if (phy && phy->otg)
-				otg_set_host(phy->otg,
-					     (struct usb_bus *)0xdeadbeef);
-
-			usb_put_phy(phy);
 		}
 	}
 

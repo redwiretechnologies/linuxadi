@@ -185,7 +185,7 @@ struct spi_device {
 	struct spi_controller	*controller;
 	struct spi_controller	*master;	/* Compatibility layer */
 	u32			max_speed_hz;
-	u8			chip_select[SPI_CS_CNT_MAX];
+	u8			chip_select;
 	u8			bits_per_word;
 	bool			rt;
 #define SPI_NO_TX	BIT(31)		/* No transmit wire */
@@ -206,7 +206,7 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	const char		*driver_override;
-	struct gpio_desc	*cs_gpiod[SPI_CS_CNT_MAX];	/* Chip select gpio desc */
+	struct gpio_desc	*cs_gpiod;	/* Chip select gpio desc */
 	struct spi_delay	word_delay; /* Inter-word delay */
 	bool			multi_die;	/* flash with multiple dies*/
 	/* CS delays */
@@ -217,13 +217,12 @@ struct spi_device {
 	/* The statistics */
 	struct spi_statistics __percpu	*pcpu_statistics;
 
-	/*
-	 * Bit mask of the chipselect(s) that the driver need to use from
+	/* Bit mask of the chipselect(s) that the driver need to use from
 	 * the chipselect array.When the controller is capable to handle
 	 * multiple chip selects & memories are connected in parallel
 	 * then more than one bit need to be set in cs_index_mask.
 	 */
-	u32			cs_index_mask : 2;
+	u32			cs_index_mask : SPI_CS_CNT_MAX;
 
 	/*
 	 * likely need more hooks for more protocol options affecting how
@@ -277,26 +276,6 @@ static inline void spi_set_drvdata(struct spi_device *spi, void *data)
 static inline void *spi_get_drvdata(struct spi_device *spi)
 {
 	return dev_get_drvdata(&spi->dev);
-}
-
-static inline u8 spi_get_chipselect(struct spi_device *spi, u8 idx)
-{
-	return spi->chip_select[idx];
-}
-
-static inline void spi_set_chipselect(struct spi_device *spi, u8 idx, u8 chipselect)
-{
-	spi->chip_select[idx] = chipselect;
-}
-
-static inline struct gpio_desc *spi_get_csgpiod(struct spi_device *spi, u8 idx)
-{
-	return spi->cs_gpiod[idx];
-}
-
-static inline void spi_set_csgpiod(struct spi_device *spi, u8 idx, struct gpio_desc *csgpiod)
-{
-	spi->cs_gpiod[idx] = csgpiod;
 }
 
 static inline u8 spi_get_chipselect(const struct spi_device *spi, u8 idx)
@@ -534,9 +513,6 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @queue_empty: signal green light for opportunistically skipping the queue
  *	for spi_sync transfers.
  * @must_async: disable all fast paths in the core
- * @defer_optimize_message: set to true if controller cannot pre-optimize messages
- *	and needs to defer the optimization step until the message is actually
- *	being transferred
  *
  * Each SPI controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -967,7 +943,6 @@ struct spi_res {
  * @len: size of rx and tx buffers (in bytes)
  * @speed_hz: Select a speed other than the device default for this
  *      transfer. If 0 the default (from @spi_device) is used.
- * @dummy: number of dummy cycles.
  * @bits_per_word: select a bits_per_word other than the device default
  *      for this transfer. If 0 the default (from @spi_device) is used.
  * @dummy_data: indicates transfer is dummy bytes transfer.
@@ -1117,8 +1092,6 @@ struct spi_transfer {
  * @spi: SPI device to which the transaction is queued
  * @is_dma_mapped: if true, the caller provided both dma and cpu virtual
  *	addresses for each transfer buffer
- * @pre_optimized: peripheral driver pre-optimized the message
- * @optimized: the message is in the optimized state
  * @complete: called to report transaction completions
  * @context: the argument to complete() when it's called
  * @frame_length: the total number of bytes in the message
@@ -1127,7 +1100,6 @@ struct spi_transfer {
  * @status: zero for success, else negative errno
  * @queue: for use by whichever driver currently owns the message
  * @state: for use by whichever driver currently owns the message
- * @opt_state: for use by whichever driver currently owns the message
  * @resources: for resource management when the spi message is processed
  * @prepared: spi_prepare_message was called for the this message
  *
@@ -1270,7 +1242,6 @@ static inline void spi_message_free(struct spi_message *m)
 {
 	kfree(m);
 }
-
 extern int spi_optimize_message(struct spi_device *spi, struct spi_message *msg);
 extern void spi_unoptimize_message(struct spi_message *msg);
 extern int devm_spi_optimize_message(struct device *dev, struct spi_device *spi,
@@ -1367,7 +1338,8 @@ struct spi_replaced_transfers {
 
 extern int spi_split_transfers_maxsize(struct spi_controller *ctlr,
 				       struct spi_message *msg,
-				       size_t maxsize);
+				       size_t maxsize,
+				       gfp_t gfp);
 extern int spi_split_transfers_maxwords(struct spi_controller *ctlr,
 					struct spi_message *msg,
 					size_t maxwords);
@@ -1654,9 +1626,6 @@ extern void spi_unregister_device(struct spi_device *spi);
 
 extern const struct spi_device_id *
 spi_get_device_id(const struct spi_device *sdev);
-
-extern const void *
-spi_get_device_match_data(const struct spi_device *sdev);
 
 extern const void *
 spi_get_device_match_data(const struct spi_device *sdev);

@@ -938,17 +938,12 @@ static int macb_mii_init(struct macb *bp)
 	dev_set_drvdata(&bp->dev->dev, bp->mii_bus);
 
 	np = bp->pdev->dev.of_node;
-	mdio_np = of_get_child_by_name(np, "mdio");
-	if (mdio_np) {
-		of_node_put(mdio_np);
-		err = of_mdiobus_register(bp->mii_bus, mdio_np);
-		if (err)
-			goto err_out_free_mdiobus;
-	} else {
-		err = macb_mdiobus_register(bp);
-		if (err)
-			goto err_out_free_mdiobus;
-	}
+
+	dev_set_drvdata(&bp->dev->dev, bp->mii_bus);
+
+	err = macb_mdiobus_register(bp);
+	if (err)
+		goto err_out_free_mdiobus;
 
 	err = macb_mii_probe(bp->dev);
 	if (err)

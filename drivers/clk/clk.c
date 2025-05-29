@@ -3317,8 +3317,7 @@ static void clk_summary_show_one(struct seq_file *s, struct clk_core *c,
 	else
 		seq_puts(s, "-----");
 
-	seq_printf(s, " %-6d", clk_core_get_scaled_duty_cycle(c, 100000));,
-		   clk_core_get_nshot(c));
+	seq_printf(s, " %-6d", clk_core_get_scaled_duty_cycle(c, 100000));
 
 	if (c->ops->is_enabled)
 		seq_printf(s, " %5c ", clk_core_is_enabled(c) ? 'Y' : 'N');

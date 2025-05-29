@@ -3710,7 +3710,8 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
  */
 int spi_split_transfers_maxsize(struct spi_controller *ctlr,
 				struct spi_message *msg,
-				size_t maxsize)
+				size_t maxsize,
+				gfp_t gfp)
 {
 	struct spi_transfer *xfer;
 	int ret;
@@ -4137,7 +4138,8 @@ static int spi_split_transfers(struct spi_message *msg)
 		}
 	} else {
 		ret = spi_split_transfers_maxsize(ctlr, msg,
-						  spi_max_transfer_size(msg->spi));
+						  spi_max_transfer_size(msg->spi),
+						  GFP_KERNEL | GFP_DMA);
 		if (ret)
 			return ret;
 	}

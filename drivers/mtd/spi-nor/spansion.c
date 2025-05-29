@@ -136,9 +136,8 @@ static int cypress_nor_octal_dtr_dis(struct spi_nor *nor)
  */
 static int cypress_nor_quad_enable_volatile(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
 	struct spi_mem_op op;
-	u8 addr_mode_nbytes = params->addr_mode_nbytes;
+	u8 addr_mode_nbytes = nor->params->addr_mode_nbytes;
 	u8 cfr1v_written;
 	int ret;
 
@@ -196,7 +195,6 @@ static int cypress_nor_quad_enable_volatile(struct spi_nor *nor)
  */
 static int cypress_nor_set_page_size(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
 	struct spi_mem_op op =
 		CYPRESS_NOR_RD_ANY_REG_OP(3, SPINOR_REG_CYPRESS_CFR3V,
 					  nor->bouncebuf);
@@ -207,23 +205,21 @@ static int cypress_nor_set_page_size(struct spi_nor *nor)
 		return ret;
 
 	if (nor->bouncebuf[0] & SPINOR_REG_CYPRESS_CFR3V_PGSZ)
-		params->page_size = 512;
+		nor->params->page_size = 512;
 	else
-		params->page_size = 256;
+		nor->params->page_size = 256;
 
 	return 0;
 }
 
 static void cypress_nor_ecc_init(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
 	/*
 	 * Programming is supported only in 16-byte ECC data unit granularity.
 	 * Byte-programming, bit-walking, or multiple program operations to the
 	 * same ECC data unit without an erase are not allowed.
 	 */
-	params->writesize = 16;
+	nor->params->writesize = 16;
 	nor->flags |= SNOR_F_ECC;
 }
 
@@ -232,19 +228,16 @@ s25hx_t_post_bfpt_fixup(struct spi_nor *nor,
 			const struct sfdp_parameter_header *bfpt_header,
 			const struct sfdp_bfpt *bfpt)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
 	/* Replace Quad Enable with volatile version */
-	params->quad_enable = cypress_nor_quad_enable_volatile;
+	nor->params->quad_enable = cypress_nor_quad_enable_volatile;
 
 	return cypress_nor_set_page_size(nor);
 }
 
 static void s25hx_t_post_sfdp_fixup(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
 	struct spi_nor_erase_type *erase_type =
-					params->erase_map.erase_type;
+					nor->params->erase_map.erase_type;
 	unsigned int i;
 
 	/*
@@ -267,10 +260,8 @@ static void s25hx_t_post_sfdp_fixup(struct spi_nor *nor)
 
 static void s25hx_t_late_init(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
 	/* Fast Read 4B requires mode cycles */
-	params->reads[SNOR_CMD_READ_FAST].num_mode_clocks = 8;
+	nor->params->reads[SNOR_CMD_READ_FAST].num_mode_clocks = 8;
 
 	cypress_nor_ecc_init(nor);
 }
@@ -299,24 +290,22 @@ static int cypress_nor_octal_dtr_enable(struct spi_nor *nor, bool enable)
 
 static void s28hs512t_post_sfdp_fixup(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
 	/*
 	 * On older versions of the flash the xSPI Profile 1.0 table has the
 	 * 8D-8D-8D Fast Read opcode as 0x00. But it actually should be 0xEE.
 	 */
-	if (params->reads[SNOR_CMD_READ_8_8_8_DTR].opcode == 0)
-		params->reads[SNOR_CMD_READ_8_8_8_DTR].opcode =
+	if (nor->params->reads[SNOR_CMD_READ_8_8_8_DTR].opcode == 0)
+		nor->params->reads[SNOR_CMD_READ_8_8_8_DTR].opcode =
 			SPINOR_OP_CYPRESS_RD_FAST;
 
 	/* This flash is also missing the 4-byte Page Program opcode bit. */
-	spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP],
+	spi_nor_set_pp_settings(&nor->params->page_programs[SNOR_CMD_PP],
 				SPINOR_OP_PP_4B, SNOR_PROTO_1_1_1);
 	/*
 	 * Since xSPI Page Program opcode is backward compatible with
 	 * Legacy SPI, use Legacy SPI opcode there as well.
 	 */
-	spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_8_8_8_DTR],
+	spi_nor_set_pp_settings(&nor->params->page_programs[SNOR_CMD_PP_8_8_8_DTR],
 				SPINOR_OP_PP_4B, SNOR_PROTO_8_8_8_DTR);
 
 	/*
@@ -324,7 +313,7 @@ static void s28hs512t_post_sfdp_fixup(struct spi_nor *nor)
 	 * address bytes needed for Read Status Register command as 0 but the
 	 * actual value for that is 4.
 	 */
-	params->rdsr_addr_nbytes = 4;
+	nor->params->rdsr_addr_nbytes = 4;
 }
 
 static int s28hs512t_post_bfpt_fixup(struct spi_nor *nor,
@@ -336,9 +325,7 @@ static int s28hs512t_post_bfpt_fixup(struct spi_nor *nor,
 
 static void s28hs512t_late_init(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
-	params->octal_dtr_enable = cypress_nor_octal_dtr_enable;
+	nor->params->octal_dtr_enable = cypress_nor_octal_dtr_enable;
 	cypress_nor_ecc_init(nor);
 }
 
@@ -353,15 +340,13 @@ s25fs_s_nor_post_bfpt_fixups(struct spi_nor *nor,
 			     const struct sfdp_parameter_header *bfpt_header,
 			     const struct sfdp_bfpt *bfpt)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
 	/*
 	 * The S25FS-S chip family reports 512-byte pages in BFPT but
 	 * in reality the write buffer still wraps at the safe default
 	 * of 256 bytes.  Overwrite the page size advertised by BFPT
 	 * to get the writes working.
 	 */
-	params->page_size = 256;
+	nor->params->page_size = 256;
 
 	return 0;
 }
@@ -379,28 +364,24 @@ static const struct flash_info spansion_nor_parts[] = {
 	{ "s25sl064p",  INFO(0x010216, 0x4d00,  64 * 1024, 128)
 		NO_SFDP_FLAGS(SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25fl128s0", INFO6(0x012018, 0x4d0080, 256 * 1024, 64)
-		FLAGS(SPI_NOR_HAS_LOCK)
 		NO_SFDP_FLAGS(SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		MFR_FLAGS(USE_CLSR)
 	},
 	{ "s25fl128s1", INFO6(0x012018, 0x4d0180, 64 * 1024, 256)
-		FLAGS(SPI_NOR_HAS_LOCK)
 		NO_SFDP_FLAGS(SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		MFR_FLAGS(USE_CLSR)
 	},
 	{ "s25fl256s0", INFO6(0x010219, 0x4d0080, 256 * 1024, 128)
-		FLAGS(SPI_NOR_HAS_LOCK)
 		NO_SFDP_FLAGS(SPI_NOR_SKIP_SFDP | SPI_NOR_DUAL_READ |
 			      SPI_NOR_QUAD_READ)
 		MFR_FLAGS(USE_CLSR)
 	},
 	{ "s25fl256s1", INFO6(0x010219, 0x4d0180, 64 * 1024, 512)
-		FLAGS(SPI_NOR_HAS_LOCK)
 		NO_SFDP_FLAGS(SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		MFR_FLAGS(USE_CLSR)
 	},
 	{ "s25fl512s",  INFO6(0x010220, 0x4d0080, 256 * 1024, 256)
-		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		FLAGS(SPI_NOR_HAS_LOCK)
 		NO_SFDP_FLAGS(SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		MFR_FLAGS(USE_CLSR)
 	},
@@ -459,15 +440,12 @@ static const struct flash_info spansion_nor_parts[] = {
 	{ "s25fl208k",  INFO(0x014014,      0,  64 * 1024,  16)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ) },
 	{ "s25fl064l",  INFO(0x016017,      0,  64 * 1024, 128)
-		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		FIXUP_FLAGS(SPI_NOR_4B_OPCODES) },
 	{ "s25fl128l",  INFO(0x016018,      0,  64 * 1024, 256)
-		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		FIXUP_FLAGS(SPI_NOR_4B_OPCODES) },
 	{ "s25fl256l",  INFO(0x016019,      0,  64 * 1024, 512)
-		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		FIXUP_FLAGS(SPI_NOR_4B_OPCODES) },
 	{ "s25hl512t",  INFO6(0x342a1a, 0x0f0390, 256 * 1024, 256)
@@ -558,9 +536,7 @@ static int spansion_nor_sr_ready_and_clear(struct spi_nor *nor)
 
 static void spansion_nor_late_init(struct spi_nor *nor)
 {
-	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
-
-	if (params->size > SZ_16M) {
+	if (nor->params->size > SZ_16M) {
 		nor->flags |= SNOR_F_4B_OPCODES;
 		/* No small sector erase for 4-byte command set */
 		nor->erase_opcode = SPINOR_OP_SE;
@@ -568,7 +544,7 @@ static void spansion_nor_late_init(struct spi_nor *nor)
 	}
 
 	if (nor->info->mfr_flags & USE_CLSR)
-		params->ready = spansion_nor_sr_ready_and_clear;
+		nor->params->ready = spansion_nor_sr_ready_and_clear;
 }
 
 static const struct spi_nor_fixups spansion_nor_fixups = {
