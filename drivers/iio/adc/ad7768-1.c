@@ -228,7 +228,7 @@ struct ad7768_state {
 		__be32 word;
 		struct {
 			__be32 chan;
-			s64 timestamp;
+			aligned_s64 timestamp;
 		} scan;
 	} data __aligned(IIO_DMA_MINALIGN);
 };

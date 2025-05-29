@@ -987,6 +987,7 @@ static int ad9467_get_scale(struct axiadc_converter *conv, int *val, int *val2)
 {
 	unsigned vref_val, vref_mask;
 	unsigned int i;
+	int ret;
 
 	switch (conv->chip_info->id) {
 	case CHIPID_AD9467:
@@ -1214,6 +1215,21 @@ static void ad9467_clk_disable(void *data)
 	struct axiadc_converter *st = data;
 
 	clk_disable_unprepare(st->clk);
+}
+
+static int ad9467_reset(struct device *dev)
+{
+	struct gpio_desc *gpio;
+
+	gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR_OR_NULL(gpio))
+		return PTR_ERR_OR_ZERO(gpio);
+
+	fsleep(1);
+	gpiod_set_value_cansleep(gpio, 0);
+	fsleep(10 * USEC_PER_MSEC);
+
+	return 0;
 }
 
 static int ad9467_probe(struct spi_device *spi)
