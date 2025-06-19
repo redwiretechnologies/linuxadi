@@ -112,11 +112,16 @@ void dwc3_ep0_interrupt(struct dwc3 *dwc,
 void dwc3_ep0_out_start(struct dwc3 *dwc);
 void dwc3_ep0_end_control_data(struct dwc3 *dwc, struct dwc3_ep *dep);
 void dwc3_ep0_stall_and_restart(struct dwc3 *dwc);
+void dwc3_gadget_enable_irq(struct dwc3 *dwc);
+void dwc3_gadget_disable_irq(struct dwc3 *dwc);
 int __dwc3_gadget_ep0_set_halt(struct usb_ep *ep, int value);
 int dwc3_gadget_ep0_set_halt(struct usb_ep *ep, int value);
 int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 		gfp_t gfp_flags);
 int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol);
+int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action);
+int __dwc3_gadget_ep_disable(struct dwc3_ep *dep);
+int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep);
 void dwc3_ep0_send_delayed_status(struct dwc3 *dwc);
 void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force, bool interrupt);
 int dwc3_gadget_start_config(struct dwc3 *dwc, unsigned int resource_index);
